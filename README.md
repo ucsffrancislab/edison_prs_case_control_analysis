@@ -120,3 +120,9 @@ Edit `config.py` to change:
 
 **Python:** pandas, numpy, statsmodels, joblib  
 **R:** metafor, data.table, ggplot2, ggrepel
+
+`python3 -m pip install --upgrade pandas numpy statsmodels joblib`
+
+`Rscript -e "BiocManager::install(c('metafor', 'data.table', 'ggplot2', 'ggrepel'))"`
+
+

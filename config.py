@@ -9,7 +9,7 @@ Everything else can remain as-is for standard runs.
 from pathlib import Path
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-BASE_DIR = Path(".")          # Root directory containing cohort data files
+BASE_DIR = Path("input")          # Root directory containing cohort data files
 OUTPUT_DIR = Path("results")  # Pipeline outputs (tables, logs)
 PLOT_DIR = Path("plots")      # Plot outputs
 
@@ -65,3 +65,4 @@ TEST_N_MODELS = 50      # Number of PGS models to run in --test mode
 # ── Logging ────────────────────────────────────────────────────────────────────
 VERBOSE = True
 LOG_LEVEL = "INFO"      # DEBUG / INFO / WARNING
+

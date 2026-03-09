@@ -201,7 +201,9 @@ def drop_high_missingness_covariates(df: pd.DataFrame, covariates: list,
         Covariates that pass the missingness filter.
     """
     logger = logging.getLogger(__name__)
+    logger.info("[%s] Checking all covariates for high missingness", cohort_name)
     kept = []
+    logger.info(df.head())
     for c in covariates:
         if c not in df.columns:
             logger.debug("[%s] Covariate '%s' not in dataframe — skipping", cohort_name, c)
@@ -234,13 +236,15 @@ def drop_zero_variance_covariates(df: pd.DataFrame, covariates: list,
         Covariates with non-zero variance.
     """
     logger = logging.getLogger(__name__)
+    logger.info("[%s] Checking all covariates for variance", cohort_name)
     kept = []
     for c in covariates:
         if c not in df.columns:
             continue
         vals = df[c].dropna()
+        logger.debug("[%s] Covariate '%s' len:%d; nuniq:%d", cohort_name, c, len(vals), vals.nunique())
         if len(vals) == 0 or vals.nunique() <= 1:
-            logger.info("[%s] Dropping zero-variance covariate '%s'", cohort_name, c)
+            logger.info("[%s] Dropping zero-variance covariate '%s'; len(%d); nuniq(%d)", cohort_name, c, len(vals), vals.nunique() )
         else:
             kept.append(c)
     return kept
@@ -276,6 +280,7 @@ def drop_outcome_separated_covariates(df: pd.DataFrame, covariates: list,
     kept : list of str
     """
     logger = logging.getLogger(__name__)
+    logger.info("[%s] Checking all covariates for outcome separation", cohort_name)
     kept = []
     for c in covariates:
         if c not in df.columns:

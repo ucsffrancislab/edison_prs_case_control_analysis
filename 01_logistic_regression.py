@@ -65,10 +65,13 @@ def fit_one_model(pgs_id: str, df: pd.DataFrame, covariates: list,
         "error_msg": "",
     }
 
+    logger = logging.getLogger(__name__)
+    logger.info("pgs: %s", pgs_id)
     try:
         # Subset to outcome + PGS + covariates columns
         cols_needed = ["case", pgs_id] + [c for c in covariates if c in df.columns]
         sub = df[cols_needed].copy()
+        logger.info("sub size: %s", sub.shape)
 
         # Drop rows missing outcome or PGS
         sub = sub.dropna(subset=["case", pgs_id])
@@ -77,17 +80,20 @@ def fit_one_model(pgs_id: str, df: pd.DataFrame, covariates: list,
         usable_covs = drop_high_missingness_covariates(
             sub, covariates, threshold=missingness_threshold, cohort_name=cohort_name
         )
+        logger.info("pgs: %s ; cohort: %s  ; covariates remaining: %s",pgs_id, cohort_name, usable_covs)
 
         # Drop rows with missing covariates (after removing high-miss covariates)
         sub = sub.dropna(subset=[pgs_id, "case"] + usable_covs)
 
         # Drop zero-variance covariates
         usable_covs = drop_zero_variance_covariates(sub, usable_covs, cohort_name=cohort_name)
+        logger.info("pgs: %s ; cohort: %s  ; covariates remaining: %s",pgs_id, cohort_name, usable_covs)
 
         # Drop covariates that perfectly separate the outcome
         usable_covs = drop_outcome_separated_covariates(sub, usable_covs,
                                                          outcome_col="case",
                                                          cohort_name=cohort_name)
+        logger.info("pgs: %s ; cohort: %s  ; covariates remaining: %s",pgs_id, cohort_name, usable_covs)
 
         # Sample counts
         n_cases = int((sub["case"] == 1).sum())
@@ -237,6 +243,7 @@ def main():
 
     # Determine which cohorts to run
     cohorts_to_run = {args.cohort: COHORTS[args.cohort]} if args.cohort else COHORTS
+    logger.debug("cohorts (%s)", cohorts_to_run)
 
     # Discover PGS model IDs from the first cohort's scores file
     first_cohort_cfg = list(COHORTS.values())[0]
@@ -256,6 +263,7 @@ def main():
     # Run each cohort
     all_results = []
     for cname, ccfg in cohorts_to_run.items():
+        logger.debug("running cohort (%s,%s)", cname, ccfg)
         res = run_cohort(cname, ccfg, pgs_ids, n_jobs=args.n_jobs,
                          test_mode=args.test)
         all_results.append(res)
