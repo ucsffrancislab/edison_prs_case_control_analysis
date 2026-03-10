@@ -203,7 +203,7 @@ def drop_high_missingness_covariates(df: pd.DataFrame, covariates: list,
     logger = logging.getLogger(__name__)
     logger.info("[%s] Checking all covariates for high missingness", cohort_name)
     kept = []
-    logger.info(df.head())
+    #logger.info(df.head())
     for c in covariates:
         if c not in df.columns:
             logger.debug("[%s] Covariate '%s' not in dataframe — skipping", cohort_name, c)

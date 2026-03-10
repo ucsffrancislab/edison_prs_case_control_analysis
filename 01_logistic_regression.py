@@ -71,7 +71,7 @@ def fit_one_model(pgs_id: str, df: pd.DataFrame, covariates: list,
         # Subset to outcome + PGS + covariates columns
         cols_needed = ["case", pgs_id] + [c for c in covariates if c in df.columns]
         sub = df[cols_needed].copy()
-        logger.info("sub size: %s", sub.shape)
+        #logger.info("sub size: %s", sub.shape)
 
         # Drop rows missing outcome or PGS
         sub = sub.dropna(subset=["case", pgs_id])
