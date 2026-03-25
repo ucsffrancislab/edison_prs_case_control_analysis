@@ -67,6 +67,12 @@ FDR_ALPHA = 0.05
 TOP_N_FOREST = 20       # Number of top models to create individual forest plots for
 TOP_N_SUMMARY = 50      # Number of top models for summary forest plot
 
+# ── Subtype filtering ──────────────────────────────────────────────────────────
+# Column names in the covariates files for subtype classification.
+# Set to None if your cohort files use different column names — override via CLI.
+IDH_COLUMN = "idh"      # Expected values: "wt", "mt"  (or None to skip)
+PQ_COLUMN  = "pq"       # Expected values: "codel", "intact"  (or None to skip)
+
 # ── Test mode ──────────────────────────────────────────────────────────────────
 TEST_N_MODELS = 50      # Number of PGS models to run in --test mode
 

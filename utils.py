@@ -73,15 +73,18 @@ def setup_logging(verbose: bool = True, log_level: str = "INFO",
 # ─────────────────────────────────────────────────────────────────────────────
 
 def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
-                     pgs_ids: list = None):
+                     pgs_ids: list = None,
+                     idh_subtype: str = None, pq_subtype: str = None,
+                     idh_column: str = None, pq_column: str = None):
     """Load and merge PGS z-scores with covariates for one cohort.
 
     Steps:
         1. Read covariates CSV, filter to exclude==0
-        2. Read PGS scores (only requested columns if pgs_ids given)
-        3. Merge on sample ID
-        4. Encode categorical covariates (sex as 0/1, source as 0/1 if present)
-        5. Log shape and missingness
+        2. Apply subtype filter to cases (controls always retained)
+        3. Read PGS scores (only requested columns if pgs_ids given)
+        4. Merge on sample ID
+        5. Encode categorical covariates (sex as 0/1, source as 0/1 if present)
+        6. Log shape and missingness
 
     Parameters
     ----------
@@ -93,6 +96,18 @@ def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
         Root data directory.
     pgs_ids : list, optional
         Subset of PGS model IDs to load.  If None, load all.
+    idh_subtype : str, optional
+        If provided, restrict cases to this IDH value (e.g. "wt" or "mt").
+        Controls (case==0) are always retained regardless of this filter.
+    pq_subtype : str, optional
+        If provided, restrict cases to this 1p19q value (e.g. "codel" or "intact").
+        Controls (case==0) are always retained regardless of this filter.
+    idh_column : str, optional
+        Column name in the covariates file for IDH status. Falls back to
+        config.IDH_COLUMN if None.
+    pq_column : str, optional
+        Column name in the covariates file for 1p19q status. Falls back to
+        config.PQ_COLUMN if None.
 
     Returns
     -------
@@ -114,6 +129,63 @@ def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
     n_excluded = n_before - len(cov)
     logger.info("[%s] Excluded %d samples (exclude==1); %d remain",
                 cohort_name, n_excluded, len(cov))
+
+    # --- 2. Subtype filter (cases only) --------------------------------------
+    # Resolve column names from args or config defaults
+    from config import IDH_COLUMN, PQ_COLUMN
+    _idh_col = idh_column or IDH_COLUMN
+    _pq_col  = pq_column  or PQ_COLUMN
+
+    # Map CLI string labels to the integer codes used in the covariates files.
+    # 0 = wildtype / intact,  1 = mutant / codel,  9 / "" = unknown (excluded).
+    _IDH_VALUE_MAP = {"wt": 0, "mt": 1}
+    _PQ_VALUE_MAP  = {"intact": 0, "codel": 1}
+
+    if idh_subtype is not None:
+        idh_key = idh_subtype.strip().lower()
+        if idh_key not in _IDH_VALUE_MAP:
+            raise ValueError(
+                f"[{cohort_name}] Unrecognised --idh-subtype '{idh_subtype}'. "
+                f"Valid values: {list(_IDH_VALUE_MAP.keys())}"
+            )
+        idh_int = _IDH_VALUE_MAP[idh_key]
+        if _idh_col not in cov.columns:
+            logger.warning("[%s] IDH filter requested ('%s') but column '%s' not found "
+                           "in covariates — filter NOT applied",
+                           cohort_name, idh_subtype, _idh_col)
+        else:
+            is_control   = cov["case"] == 0
+            is_match     = pd.to_numeric(cov[_idh_col], errors="coerce") == idh_int
+            n_before_idh = len(cov)
+            cov = cov[is_control | is_match].copy()
+            n_dropped = n_before_idh - len(cov)
+            logger.info("[%s] IDH filter '%s'==%d ('%s'): dropped %d cases; "
+                        "%d cases + %d controls remain",
+                        cohort_name, _idh_col, idh_int, idh_subtype, n_dropped,
+                        (cov["case"] == 1).sum(), (cov["case"] == 0).sum())
+
+    if pq_subtype is not None:
+        pq_key = pq_subtype.strip().lower()
+        if pq_key not in _PQ_VALUE_MAP:
+            raise ValueError(
+                f"[{cohort_name}] Unrecognised --pq-subtype '{pq_subtype}'. "
+                f"Valid values: {list(_PQ_VALUE_MAP.keys())}"
+            )
+        pq_int = _PQ_VALUE_MAP[pq_key]
+        if _pq_col not in cov.columns:
+            logger.warning("[%s] 1p19q filter requested ('%s') but column '%s' not found "
+                           "in covariates — filter NOT applied",
+                           cohort_name, pq_subtype, _pq_col)
+        else:
+            is_control  = cov["case"] == 0
+            is_match    = pd.to_numeric(cov[_pq_col], errors="coerce") == pq_int
+            n_before_pq = len(cov)
+            cov = cov[is_control | is_match].copy()
+            n_dropped = n_before_pq - len(cov)
+            logger.info("[%s] 1p19q filter '%s'==%d ('%s'): dropped %d cases; "
+                        "%d cases + %d controls remain",
+                        cohort_name, _pq_col, pq_int, pq_subtype, n_dropped,
+                        (cov["case"] == 1).sum(), (cov["case"] == 0).sum())
 
     # Rename sample ID column to 'sample_id' for merging
     sid_cov = cohort_cfg["sample_id_cov"]

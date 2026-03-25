@@ -138,7 +138,9 @@ def fit_one_model(pgs_id: str, df: pd.DataFrame, covariates: list,
 # ─────────────────────────────────────────────────────────────────────────────
 
 def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
-               n_jobs: int = 1, test_mode: bool = False):
+               n_jobs: int = 1, test_mode: bool = False,
+               idh_subtype: str = None, pq_subtype: str = None,
+               idh_column: str = None, pq_column: str = None):
     """Run logistic regression across all PGS models for one cohort.
 
     Parameters
@@ -149,6 +151,14 @@ def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
         PGS model IDs to evaluate (already subsetted in test mode).
     n_jobs : int
     test_mode : bool
+    idh_subtype : str, optional
+        Restrict cases to this IDH value (e.g. "wt" or "mt").
+    pq_subtype : str, optional
+        Restrict cases to this 1p19q value (e.g. "codel" or "intact").
+    idh_column : str, optional
+        Override the IDH column name in the covariates file.
+    pq_column : str, optional
+        Override the 1p19q column name in the covariates file.
 
     Returns
     -------
@@ -159,9 +169,18 @@ def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
     logger.info("Starting cohort: %s  (%d models, n_jobs=%d)",
                 cohort_name, len(pgs_ids), n_jobs)
 
+    # Log active subtype filters
+    if idh_subtype or pq_subtype:
+        logger.info("[%s] Subtype filters — IDH: %s  1p19q: %s",
+                    cohort_name, idh_subtype or "all", pq_subtype or "all")
+
     # Load data (only the PGS columns we need)
     df, available_pgs = load_cohort_data(cohort_name, cohort_cfg, BASE_DIR,
-                                          pgs_ids=pgs_ids)
+                                          pgs_ids=pgs_ids,
+                                          idh_subtype=idh_subtype,
+                                          pq_subtype=pq_subtype,
+                                          idh_column=idh_column,
+                                          pq_column=pq_column)
 
     # Determine which PGS IDs are actually available
     pgs_to_run = [p for p in pgs_ids if p in df.columns]
@@ -211,11 +230,33 @@ def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
 
     # Save
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = OUTPUT_DIR / f"{cohort_name}_logistic_results.tsv"
+    subtype_tag = _build_subtype_tag(idh_subtype, pq_subtype)
+    out_path = OUTPUT_DIR / f"{cohort_name}{subtype_tag}_logistic_results.tsv"
     results_df.to_csv(out_path, sep="\t", index=False)
     logger.info("[%s] Results saved to %s", cohort_name, out_path)
 
     return results_df
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_subtype_tag(idh_subtype: str = None, pq_subtype: str = None) -> str:
+    """Build a filename-safe tag string from active subtype filters.
+
+    Examples
+    --------
+    ("wt", None)        -> "_IDHwt"
+    ("mt", "codel")     -> "_IDHmt_codel"
+    (None, None)        -> ""
+    """
+    parts = []
+    if idh_subtype:
+        parts.append(f"IDH{idh_subtype}")
+    if pq_subtype:
+        parts.append(pq_subtype)
+    return ("_" + "_".join(parts)) if parts else ""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -232,14 +273,34 @@ def main():
     parser.add_argument("--n-jobs", type=int,
                         default=int(os.environ.get("SLURM_CPUS_PER_TASK", 1)),
                         help="Number of parallel threads")
+    parser.add_argument("--idh-subtype", type=str, default=None,
+                        metavar="VALUE",
+                        help="Restrict cases to this IDH value (e.g. wt or mt). "
+                             "Controls are always retained.")
+    parser.add_argument("--pq-subtype", type=str, default=None,
+                        metavar="VALUE",
+                        help="Restrict cases to this 1p19q value (e.g. codel or intact). "
+                             "Controls are always retained.")
+    parser.add_argument("--idh-column", type=str, default=None,
+                        metavar="COLNAME",
+                        help="Override the IDH column name in covariates files "
+                             f"(default: config.IDH_COLUMN)")
+    parser.add_argument("--pq-column", type=str, default=None,
+                        metavar="COLNAME",
+                        help="Override the 1p19q column name in covariates files "
+                             f"(default: config.PQ_COLUMN)")
     args = parser.parse_args()
 
     # Logging
     log_tag = "test" if args.test else "full"
+    subtype_tag = _build_subtype_tag(args.idh_subtype, args.pq_subtype)
     setup_logging(args.verbose, LOG_LEVEL, OUTPUT_DIR,
-                  log_filename=f"01_logistic_{log_tag}.log")
+                  log_filename=f"01_logistic{subtype_tag}_{log_tag}.log")
     logger = logging.getLogger(__name__)
     logger.info("Pipeline step 01 — logistic regression (mode=%s)", log_tag)
+    if args.idh_subtype or args.pq_subtype:
+        logger.info("Subtype filters — IDH: %s  1p19q: %s",
+                    args.idh_subtype or "all", args.pq_subtype or "all")
 
     # Determine which cohorts to run
     cohorts_to_run = {args.cohort: COHORTS[args.cohort]} if args.cohort else COHORTS
@@ -264,8 +325,13 @@ def main():
     all_results = []
     for cname, ccfg in cohorts_to_run.items():
         logger.debug("running cohort (%s,%s)", cname, ccfg)
-        res = run_cohort(cname, ccfg, pgs_ids, n_jobs=args.n_jobs,
-                         test_mode=args.test)
+        res = run_cohort(cname, ccfg, pgs_ids,
+                         n_jobs=args.n_jobs,
+                         test_mode=args.test,
+                         idh_subtype=args.idh_subtype,
+                         pq_subtype=args.pq_subtype,
+                         idh_column=args.idh_column,
+                         pq_column=args.pq_column)
         all_results.append(res)
 
     # Combined summary
