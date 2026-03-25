@@ -21,6 +21,14 @@ PLOT_DIR = Path("plots")      # Plot outputs
 #   - sample_id_cov   : column name for sample ID in covariates file
 #   - sample_id_scores: column name for sample ID in scores file
 COHORTS = {
+    "cidr": {
+        "covariates_file": "cidr-covariates.csv",
+        "scores_file": "cidr.scores.z-scores.txt.gz",
+        #"extra_covariates": ["source"],       # two recruitment sources (CIDR, MDSAML) # cases and controls separate could be issue
+        "extra_covariates": [],       # two recruitment sources (CIDR, MDSAML) # cases and controls separate could be issue
+        "sample_id_cov": "IID",
+        "sample_id_scores": "sample",
+    },
     "onco": {
         "covariates_file": "onco-covariates.csv",
         "scores_file": "onco.scores.z-scores.txt.gz",

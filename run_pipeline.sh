@@ -3,8 +3,8 @@
 #SBATCH --cpus-per-task=64
 #SBATCH --mem=490G
 #SBATCH --time=14-0
-#SBATCH --output=slurm_%j.out
-#SBATCH --error=slurm_%j.err
+#SBATCH --output=slurm_%j.out.txt
+#SBATCH --error=slurm_%j.err.txt
 
 # ──────────────────────────────────────────────────────────────────────────────
 # run_pipeline.sh — SLURM submission script for PGS meta-analysis pipeline
