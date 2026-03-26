@@ -73,6 +73,9 @@ def main():
                         metavar="VALUE",
                         help="Restrict cases to this 1p19q value (e.g. codel or intact). "
                              "Controls are always retained.")
+    parser.add_argument("--sex", type=str, default=None,
+                        metavar="M|F",
+                        help="Restrict entire cohort (cases AND controls) to this sex.")
     parser.add_argument("--idh-column", type=str, default=None,
                         metavar="COLNAME",
                         help="Override the IDH column name in covariates files")
@@ -91,6 +94,8 @@ def main():
         subtype_parts.append(f"IDH{args.idh_subtype}")
     if args.pq_subtype:
         subtype_parts.append(args.pq_subtype)
+    if args.sex:
+        subtype_parts.append(args.sex.upper())
     subtype_tag = ("_" + "_".join(subtype_parts)) if subtype_parts else ""
 
     setup_logging(args.verbose, LOG_LEVEL, outdir,
@@ -101,9 +106,10 @@ def main():
     logger.info("PGS CASE/CONTROL META-ANALYSIS PIPELINE")
     logger.info("Mode:   %s", "TEST" if args.test else "FULL")
     logger.info("Outdir: %s", outdir)
-    if args.idh_subtype or args.pq_subtype:
-        logger.info("Subtype filters — IDH: %s  1p19q: %s",
-                    args.idh_subtype or "all", args.pq_subtype or "all")
+    if args.idh_subtype or args.pq_subtype or args.sex:
+        logger.info("Subtype filters — IDH: %s  1p19q: %s  Sex: %s",
+                    args.idh_subtype or "all", args.pq_subtype or "all",
+                    args.sex or "all")
     logger.info("=" * 70)
 
     t_start = time.time()
@@ -120,6 +126,8 @@ def main():
         cmd_01 += ["--idh-subtype", args.idh_subtype]
     if args.pq_subtype:
         cmd_01 += ["--pq-subtype", args.pq_subtype]
+    if args.sex:
+        cmd_01 += ["--sex", args.sex]
     if args.idh_column:
         cmd_01 += ["--idh-column", args.idh_column]
     if args.pq_column:

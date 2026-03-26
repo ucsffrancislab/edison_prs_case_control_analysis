@@ -75,7 +75,8 @@ def setup_logging(verbose: bool = True, log_level: str = "INFO",
 def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
                      pgs_ids: list = None,
                      idh_subtype: str = None, pq_subtype: str = None,
-                     idh_column: str = None, pq_column: str = None):
+                     idh_column: str = None, pq_column: str = None,
+                     sex_filter: str = None):
     """Load and merge PGS z-scores with covariates for one cohort.
 
     Steps:
@@ -108,6 +109,10 @@ def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
     pq_column : str, optional
         Column name in the covariates file for 1p19q status. Falls back to
         config.PQ_COLUMN if None.
+    sex_filter : str, optional
+        If provided, restrict the entire cohort (cases AND controls) to this
+        sex value. Accepts "M" or "F" (case-insensitive). Applied before
+        the M/F -> 1/0 encoding step, on the raw string values.
 
     Returns
     -------
@@ -185,6 +190,28 @@ def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
             logger.info("[%s] 1p19q filter '%s'==%d ('%s'): dropped %d cases; "
                         "%d cases + %d controls remain",
                         cohort_name, _pq_col, pq_int, pq_subtype, n_dropped,
+                        (cov["case"] == 1).sum(), (cov["case"] == 0).sum())
+
+    # --- 3. Sex filter (cases AND controls) -----------------------------------
+    # Applied before encoding so we can match on raw "M"/"F" string values.
+    _SEX_VALUES = {"m", "f"}
+    if sex_filter is not None:
+        sex_key = sex_filter.strip().upper()
+        if sex_key not in {"M", "F"}:
+            raise ValueError(
+                f"[{cohort_name}] Unrecognised --sex '{sex_filter}'. "
+                f"Valid values: M, F"
+            )
+        if "sex" not in cov.columns:
+            logger.warning("[%s] Sex filter requested ('%s') but 'sex' column not found "
+                           "in covariates — filter NOT applied", cohort_name, sex_filter)
+        else:
+            n_before_sex = len(cov)
+            cov = cov[cov["sex"].astype(str).str.strip().str.upper() == sex_key].copy()
+            n_dropped = n_before_sex - len(cov)
+            logger.info("[%s] Sex filter == '%s': dropped %d subjects; "
+                        "%d cases + %d controls remain",
+                        cohort_name, sex_key, n_dropped,
                         (cov["case"] == 1).sum(), (cov["case"] == 0).sum())
 
     # Rename sample ID column to 'sample_id' for merging

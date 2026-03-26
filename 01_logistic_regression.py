@@ -62,6 +62,9 @@ def fit_one_model(pgs_id: str, df: pd.DataFrame, covariates: list,
         "n_total": 0,
         "converged": False,
         "covariate_list": "",
+        "sex_log_or": np.nan,
+        "sex_se": np.nan,
+        "sex_pvalue": np.nan,
         "status": "failed",
         "error_msg": "",
     }
@@ -125,6 +128,13 @@ def fit_one_model(pgs_id: str, df: pd.DataFrame, covariates: list,
         result["pvalue"] = fit.pvalues[pgs_id]
         result["converged"] = bool(fit.mle_retvals.get("converged", False))
         result["covariate_list"] = ";".join(usable_covs)
+
+        # Sex coefficient — present only when sex was not dropped (mixed-sex run)
+        if "sex" in usable_covs:
+            result["sex_log_or"] = fit.params["sex"]
+            result["sex_se"] = fit.bse["sex"]
+            result["sex_pvalue"] = fit.pvalues["sex"]
+
         result["status"] = "success"
 
     except Exception as e:
@@ -142,6 +152,7 @@ def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
                n_jobs: int = 1, test_mode: bool = False,
                idh_subtype: str = None, pq_subtype: str = None,
                idh_column: str = None, pq_column: str = None,
+               sex_filter: str = None,
                outdir: Path = None):
     """Run logistic regression across all PGS models for one cohort.
 
@@ -172,9 +183,10 @@ def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
                 cohort_name, len(pgs_ids), n_jobs)
 
     # Log active subtype filters
-    if idh_subtype or pq_subtype:
-        logger.info("[%s] Subtype filters — IDH: %s  1p19q: %s",
-                    cohort_name, idh_subtype or "all", pq_subtype or "all")
+    if idh_subtype or pq_subtype or sex_filter:
+        logger.info("[%s] Subtype filters — IDH: %s  1p19q: %s  Sex: %s",
+                    cohort_name, idh_subtype or "all", pq_subtype or "all",
+                    sex_filter or "all")
 
     # Load data (only the PGS columns we need)
     df, available_pgs = load_cohort_data(cohort_name, cohort_cfg, BASE_DIR,
@@ -182,7 +194,8 @@ def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
                                           idh_subtype=idh_subtype,
                                           pq_subtype=pq_subtype,
                                           idh_column=idh_column,
-                                          pq_column=pq_column)
+                                          pq_column=pq_column,
+                                          sex_filter=sex_filter)
 
     # Determine which PGS IDs are actually available
     pgs_to_run = [p for p in pgs_ids if p in df.columns]
@@ -233,7 +246,7 @@ def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
     # Save
     save_dir = outdir if outdir is not None else OUTPUT_DIR
     save_dir.mkdir(parents=True, exist_ok=True)
-    subtype_tag = _build_subtype_tag(idh_subtype, pq_subtype)
+    subtype_tag = _build_subtype_tag(idh_subtype, pq_subtype, sex_filter)
     out_path = save_dir / f"{cohort_name}{subtype_tag}_logistic_results.tsv"
     results_df.to_csv(out_path, sep="\t", index=False)
     logger.info("[%s] Results saved to %s", cohort_name, out_path)
@@ -245,20 +258,25 @@ def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _build_subtype_tag(idh_subtype: str = None, pq_subtype: str = None) -> str:
+def _build_subtype_tag(idh_subtype: str = None, pq_subtype: str = None,
+                       sex_filter: str = None) -> str:
     """Build a filename-safe tag string from active subtype filters.
 
     Examples
     --------
-    ("wt", None)        -> "_IDHwt"
-    ("mt", "codel")     -> "_IDHmt_codel"
-    (None, None)        -> ""
+    ("wt", None, None)      -> "_IDHwt"
+    ("mt", "codel", None)   -> "_IDHmt_codel"
+    (None, None, "M")       -> "_M"
+    ("wt", None, "F")       -> "_IDHwt_F"
+    (None, None, None)      -> ""
     """
     parts = []
     if idh_subtype:
         parts.append(f"IDH{idh_subtype}")
     if pq_subtype:
         parts.append(pq_subtype)
+    if sex_filter:
+        parts.append(sex_filter.upper())
     return ("_" + "_".join(parts)) if parts else ""
 
 
@@ -292,6 +310,11 @@ def main():
                         metavar="COLNAME",
                         help="Override the 1p19q column name in covariates files "
                              f"(default: config.PQ_COLUMN)")
+    parser.add_argument("--sex", type=str, default=None,
+                        metavar="M|F",
+                        help="Restrict entire cohort (cases AND controls) to this sex. "
+                             "When set, sex is dropped as a covariate (zero variance) and "
+                             "sex_log_or/sex_se/sex_pvalue will be NaN in results.")
     parser.add_argument("--outdir", type=str, default=None,
                         metavar="DIR",
                         help="Output directory for results and logs. "
@@ -304,14 +327,15 @@ def main():
 
     # Logging
     log_tag = "test" if args.test else "full"
-    subtype_tag = _build_subtype_tag(args.idh_subtype, args.pq_subtype)
+    subtype_tag = _build_subtype_tag(args.idh_subtype, args.pq_subtype, args.sex)
     setup_logging(args.verbose, LOG_LEVEL, outdir,
                   log_filename=f"01_logistic{subtype_tag}_{log_tag}.log")
     logger = logging.getLogger(__name__)
     logger.info("Pipeline step 01 — logistic regression (mode=%s)", log_tag)
-    if args.idh_subtype or args.pq_subtype:
-        logger.info("Subtype filters — IDH: %s  1p19q: %s",
-                    args.idh_subtype or "all", args.pq_subtype or "all")
+    if args.idh_subtype or args.pq_subtype or args.sex:
+        logger.info("Subtype filters — IDH: %s  1p19q: %s  Sex: %s",
+                    args.idh_subtype or "all", args.pq_subtype or "all",
+                    args.sex or "all")
 
     # Determine which cohorts to run
     cohorts_to_run = {args.cohort: COHORTS[args.cohort]} if args.cohort else COHORTS
@@ -343,6 +367,7 @@ def main():
                          pq_subtype=args.pq_subtype,
                          idh_column=args.idh_column,
                          pq_column=args.pq_column,
+                         sex_filter=args.sex,
                          outdir=outdir)
         all_results.append(res)
 
