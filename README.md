@@ -126,3 +126,13 @@ Edit `config.py` to change:
 `Rscript -e "BiocManager::install(c('metafor', 'data.table', 'ggplot2', 'ggrepel'))"`
 
 
+
+
+## Notes
+
+https://claude.ai/chat/81868de0-9fc9-49a3-8a33-d1901346d8a1
+
+https://claude.ai/chat/95643c91-f044-4ac5-9cbb-606a4a0ac15c
+
+
+
