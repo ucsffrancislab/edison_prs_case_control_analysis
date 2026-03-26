@@ -140,7 +140,8 @@ def fit_one_model(pgs_id: str, df: pd.DataFrame, covariates: list,
 def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
                n_jobs: int = 1, test_mode: bool = False,
                idh_subtype: str = None, pq_subtype: str = None,
-               idh_column: str = None, pq_column: str = None):
+               idh_column: str = None, pq_column: str = None,
+               outdir: Path = None):
     """Run logistic regression across all PGS models for one cohort.
 
     Parameters
@@ -229,9 +230,10 @@ def run_cohort(cohort_name: str, cohort_cfg: dict, pgs_ids: list,
                 cohort_name, elapsed, n_success, n_failed, n_skipped)
 
     # Save
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    save_dir = outdir if outdir is not None else OUTPUT_DIR
+    save_dir.mkdir(parents=True, exist_ok=True)
     subtype_tag = _build_subtype_tag(idh_subtype, pq_subtype)
-    out_path = OUTPUT_DIR / f"{cohort_name}{subtype_tag}_logistic_results.tsv"
+    out_path = save_dir / f"{cohort_name}{subtype_tag}_logistic_results.tsv"
     results_df.to_csv(out_path, sep="\t", index=False)
     logger.info("[%s] Results saved to %s", cohort_name, out_path)
 
@@ -289,12 +291,20 @@ def main():
                         metavar="COLNAME",
                         help="Override the 1p19q column name in covariates files "
                              f"(default: config.PQ_COLUMN)")
+    parser.add_argument("--outdir", type=str, default=None,
+                        metavar="DIR",
+                        help="Output directory for results and logs. "
+                             "Created if it does not exist. Overrides config OUTPUT_DIR.")
     args = parser.parse_args()
+
+    # Resolve output directory
+    outdir = Path(args.outdir) if args.outdir else OUTPUT_DIR
+    outdir.mkdir(parents=True, exist_ok=True)
 
     # Logging
     log_tag = "test" if args.test else "full"
     subtype_tag = _build_subtype_tag(args.idh_subtype, args.pq_subtype)
-    setup_logging(args.verbose, LOG_LEVEL, OUTPUT_DIR,
+    setup_logging(args.verbose, LOG_LEVEL, outdir,
                   log_filename=f"01_logistic{subtype_tag}_{log_tag}.log")
     logger = logging.getLogger(__name__)
     logger.info("Pipeline step 01 — logistic regression (mode=%s)", log_tag)
@@ -331,7 +341,8 @@ def main():
                          idh_subtype=args.idh_subtype,
                          pq_subtype=args.pq_subtype,
                          idh_column=args.idh_column,
-                         pq_column=args.pq_column)
+                         pq_column=args.pq_column,
+                         outdir=outdir)
         all_results.append(res)
 
     # Combined summary

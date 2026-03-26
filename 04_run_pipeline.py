@@ -22,6 +22,8 @@ from config import LOG_LEVEL, OUTPUT_DIR, PLOT_DIR, VERBOSE
 from utils import setup_logging
 
 
+
+
 def run_step(step_name: str, cmd: list, logger: logging.Logger):
     """Execute a pipeline step as a subprocess.
 
@@ -59,6 +61,10 @@ def main():
     parser.add_argument("--test", action="store_true", help="Test mode")
     parser.add_argument("--verbose", action="store_true", default=VERBOSE)
     parser.add_argument("--n-jobs", type=int, default=1)
+    parser.add_argument("--outdir", type=str, default=None,
+                        metavar="DIR",
+                        help="Output directory for all results, plots, and logs. "
+                             "Created if it does not exist. Overrides config OUTPUT_DIR/PLOT_DIR.")
     parser.add_argument("--idh-subtype", type=str, default=None,
                         metavar="VALUE",
                         help="Restrict cases to this IDH value (e.g. wt or mt). "
@@ -75,8 +81,11 @@ def main():
                         help="Override the 1p19q column name in covariates files")
     args = parser.parse_args()
 
+    # Resolve output directory — CLI wins over config defaults
+    outdir = Path(args.outdir) if args.outdir else OUTPUT_DIR
+    outdir.mkdir(parents=True, exist_ok=True)
+
     log_tag = "test" if args.test else "full"
-    # Build a subtype tag for log/output naming (mirrors 01_logistic_regression logic)
     subtype_parts = []
     if args.idh_subtype:
         subtype_parts.append(f"IDH{args.idh_subtype}")
@@ -84,13 +93,14 @@ def main():
         subtype_parts.append(args.pq_subtype)
     subtype_tag = ("_" + "_".join(subtype_parts)) if subtype_parts else ""
 
-    setup_logging(args.verbose, LOG_LEVEL, OUTPUT_DIR,
+    setup_logging(args.verbose, LOG_LEVEL, outdir,
                   log_filename=f"04_pipeline{subtype_tag}_{log_tag}.log")
     logger = logging.getLogger(__name__)
 
     logger.info("=" * 70)
     logger.info("PGS CASE/CONTROL META-ANALYSIS PIPELINE")
-    logger.info("Mode: %s", "TEST" if args.test else "FULL")
+    logger.info("Mode:   %s", "TEST" if args.test else "FULL")
+    logger.info("Outdir: %s", outdir)
     if args.idh_subtype or args.pq_subtype:
         logger.info("Subtype filters — IDH: %s  1p19q: %s",
                     args.idh_subtype or "all", args.pq_subtype or "all")
@@ -100,7 +110,8 @@ def main():
 
     # Step 01: Logistic regression
     cmd_01 = [sys.executable, "01_logistic_regression.py",
-              "--n-jobs", str(args.n_jobs)]
+              "--n-jobs", str(args.n_jobs),
+              "--outdir", str(outdir)]
     if args.test:
         cmd_01.append("--test")
     if args.verbose:
@@ -117,13 +128,13 @@ def main():
 
     # Step 02: Meta-analysis (R)
     cmd_02 = ["Rscript", "02_meta_analysis.R",
-              "--results-dir", str(OUTPUT_DIR)]
+              "--results-dir", str(outdir)]
     run_step("02_meta_analysis", cmd_02, logger)
 
     # Step 03: Plots (R)
     cmd_03 = ["Rscript", "03_plots.R",
-              "--results-dir", str(OUTPUT_DIR),
-              "--plot-dir", str(PLOT_DIR)]
+              "--results-dir", str(outdir),
+              "--plot-dir", str(outdir)]
     run_step("03_plots", cmd_03, logger)
 
     total = time.time() - t_start
