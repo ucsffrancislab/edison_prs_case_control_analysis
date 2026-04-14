@@ -10,25 +10,33 @@
 # run_pipeline.sh — SLURM submission script for PGS meta-analysis pipeline
 #
 # Usage:
-#   sbatch run_pipeline.sh --outdir allcases
-#   sbatch run_pipeline.sh --outdir idhwt_cases  --idh-subtype wt
-#   sbatch run_pipeline.sh --outdir idhmt_cases  --idh-subtype mt
-#   sbatch run_pipeline.sh --outdir idhmt_codel  --idh-subtype mt --pq-subtype codel
-#   sbatch run_pipeline.sh --outdir idhmt_intact --idh-subtype mt --pq-subtype intact
-#   sbatch run_pipeline.sh --outdir test_run     --test
+#   sbatch ~/github/ucsffrancislab/edison_prs_case_control_analysis/run_pipeline.sh --outdir allcases
+#   sbatch ~/github/ucsffrancislab/edison_prs_case_control_analysis/run_pipeline.sh --outdir idhwt_cases  --idh-subtype wt
+#   sbatch ~/github/ucsffrancislab/edison_prs_case_control_analysis/run_pipeline.sh --outdir idhmt_cases  --idh-subtype mt
+#   sbatch ~/github/ucsffrancislab/edison_prs_case_control_analysis/run_pipeline.sh --outdir idhmt_codel  --idh-subtype mt --pq-subtype codel
+#   sbatch ~/github/ucsffrancislab/edison_prs_case_control_analysis/run_pipeline.sh --outdir idhmt_intact --idh-subtype mt --pq-subtype intact
+#   sbatch ~/github/ucsffrancislab/edison_prs_case_control_analysis/run_pipeline.sh --outdir test_run     --test
 #
 # --outdir is required. All output (logs, results, plots) goes there.
 # All Python stdout/stderr is captured to <outdir>/pipeline.out.txt so the
 # SLURM output files are intentionally empty.
 #
 # This script can be called from any directory — subscripts are located
-# relative to the script's own directory, not the working directory.
+# via scontrol (under SLURM) or dirname "$0" (interactive/local runs).
 # ──────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
 # ── Locate the directory this script lives in ────────────────────────────────
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Under SLURM, sbatch copies the script to a spool directory so dirname "$0"
+# points to the wrong place. Use scontrol to recover the original path.
+# Outside SLURM (interactive/local), dirname "$0" works fine.
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+    PIPELINE_DIR=$(dirname "$(scontrol show job "$SLURM_JOB_ID" \
+        | awk '/Command=/{sub(/.*Command=/, ""); print $1}')")
+else
+    PIPELINE_DIR="$(cd "$(dirname "$0")" && pwd)"
+fi
 
 # ── Parse --outdir from args, collect remainder for Python ───────────────────
 OUTDIR=""
@@ -60,11 +68,12 @@ mkdir -p "$OUTDIR"
 exec > "${OUTDIR}/pipeline.out.txt" 2>&1
 
 # ── Job info ──────────────────────────────────────────────────────────────────
-echo "Job ID: $SLURM_JOB_ID"
-echo "Node:   $(hostname)"
-echo "CPUs:   $SLURM_CPUS_PER_TASK"
-echo "Outdir: $OUTDIR"
-echo "Start:  $(date)"
+echo "Job ID:       ${SLURM_JOB_ID:-local}"
+echo "Node:         $(hostname)"
+echo "CPUs:         ${SLURM_CPUS_PER_TASK:-$(nproc)}"
+echo "Outdir:       $OUTDIR"
+echo "Pipeline dir: $PIPELINE_DIR"
+echo "Start:        $(date)"
 
 # ── Environment activation ───────────────────────────────────────────────────
 # Uncomment and edit ONE of the following:
@@ -75,7 +84,7 @@ echo "Start:  $(date)"
 module load r
 
 # ── Run pipeline ─────────────────────────────────────────────────────────────
-python3 "$SCRIPT_DIR/04_run_pipeline.py" \
+python3 "$PIPELINE_DIR/04_run_pipeline.py" \
     --n-jobs ${SLURM_CPUS_PER_TASK:-16} \
     --verbose \
     --outdir "$OUTDIR" \
