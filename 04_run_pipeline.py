@@ -18,8 +18,12 @@ import sys
 import time
 from pathlib import Path
 
-from config import LOG_LEVEL, OUTPUT_DIR, PLOT_DIR, VERBOSE
-from utils import setup_logging
+# ── Ensure sibling modules (config, utils) are importable regardless of CWD ──
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+from pgs_case_control_config import LOG_LEVEL, OUTPUT_DIR, PLOT_DIR, VERBOSE
+from pgs_case_control_utils import setup_logging
 
 
 
@@ -115,7 +119,7 @@ def main():
     t_start = time.time()
 
     # Step 01: Logistic regression
-    cmd_01 = [sys.executable, "01_logistic_regression.py",
+    cmd_01 = [sys.executable, str(SCRIPT_DIR / "01_logistic_regression.py"),
               "--n-jobs", str(args.n_jobs),
               "--outdir", str(outdir)]
     if args.test:
@@ -135,12 +139,12 @@ def main():
     run_step("01_logistic_regression", cmd_01, logger)
 
     # Step 02: Meta-analysis (R)
-    cmd_02 = ["Rscript", "02_meta_analysis.R",
+    cmd_02 = ["Rscript", str(SCRIPT_DIR / "02_meta_analysis.R"),
               "--results-dir", str(outdir)]
     run_step("02_meta_analysis", cmd_02, logger)
 
     # Step 03: Plots (R)
-    cmd_03 = ["Rscript", "03_plots.R",
+    cmd_03 = ["Rscript", str(SCRIPT_DIR / "03_plots.R"),
               "--results-dir", str(outdir),
               "--plot-dir", str(outdir)]
     run_step("03_plots", cmd_03, logger)

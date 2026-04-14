@@ -22,19 +22,23 @@ import time
 import warnings
 from pathlib import Path
 
+# ── Ensure sibling modules (config, utils) are importable regardless of CWD ──
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from joblib import Parallel, delayed
 
 # Local imports
-from config import (BASE_COVARIATES, BASE_DIR, COHORTS, FDR_ALPHA, LOG_LEVEL,
-                    MIN_CASES, MIN_CONTROLS, MISSINGNESS_THRESHOLD,
-                    OUTPUT_DIR, TEST_N_MODELS, VERBOSE)
-from utils import (check_min_samples, drop_high_missingness_covariates,
-                   drop_outcome_separated_covariates,
-                   drop_zero_variance_covariates, load_cohort_data,
-                   setup_logging)
+from pgs_case_control_config import (BASE_COVARIATES, BASE_DIR, COHORTS, FDR_ALPHA, LOG_LEVEL,
+                                    MIN_CASES, MIN_CONTROLS, MISSINGNESS_THRESHOLD,
+                                    OUTPUT_DIR, TEST_N_MODELS, VERBOSE)
+from pgs_case_control_utils import (check_min_samples, drop_high_missingness_covariates,
+                                   drop_outcome_separated_covariates,
+                                   drop_zero_variance_covariates, load_cohort_data,
+                                   setup_logging)
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 

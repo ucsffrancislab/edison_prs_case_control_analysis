@@ -20,9 +20,15 @@
 # --outdir is required. All output (logs, results, plots) goes there.
 # All Python stdout/stderr is captured to <outdir>/pipeline.out.txt so the
 # SLURM output files are intentionally empty.
+#
+# This script can be called from any directory — subscripts are located
+# relative to the script's own directory, not the working directory.
 # ──────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
+
+# ── Locate the directory this script lives in ────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # ── Parse --outdir from args, collect remainder for Python ───────────────────
 OUTDIR=""
@@ -69,7 +75,7 @@ echo "Start:  $(date)"
 module load r
 
 # ── Run pipeline ─────────────────────────────────────────────────────────────
-python3 04_run_pipeline.py \
+python3 "$SCRIPT_DIR/04_run_pipeline.py" \
     --n-jobs ${SLURM_CPUS_PER_TASK:-16} \
     --verbose \
     --outdir "$OUTDIR" \
