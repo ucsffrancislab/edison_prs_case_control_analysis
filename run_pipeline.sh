@@ -38,12 +38,22 @@ else
     PIPELINE_DIR="$(cd "$(dirname "$0")" && pwd)"
 fi
 
+
+#DATA_DIR="${1:-input}"
+#OUTDIR="${2:-results}"
+#EXTRA_ARGS="${@:3}"
+
 # ── Parse --outdir from args, collect remainder for Python ───────────────────
-OUTDIR=""
+DATA_DIR="input"
+OUTDIR="results"
 PYTHON_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --datadir)
+            DATA_DIR="$2"
+            shift 2
+            ;;
         --outdir)
             OUTDIR="$2"
             shift 2
