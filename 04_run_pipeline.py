@@ -18,7 +18,7 @@ import sys
 import time
 from pathlib import Path
 
-# ── Ensure sibling modules (config, utils) are importable regardless of CWD ──
+# ── Ensure sibling modules (pgs_case_control_config, pgs_case_control_utils) are importable regardless of CWD ──
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
@@ -68,7 +68,7 @@ def main():
     parser.add_argument("--outdir", type=str, default=None,
                         metavar="DIR",
                         help="Output directory for all results, plots, and logs. "
-                             "Created if it does not exist. Overrides config OUTPUT_DIR/PLOT_DIR.")
+                             "Created if it does not exist. Overrides pgs_case_control_config OUTPUT_DIR/PLOT_DIR.")
     parser.add_argument("--idh-subtype", type=str, default=None,
                         metavar="VALUE",
                         help="Restrict cases to this IDH value (e.g. wt or mt). "
@@ -88,7 +88,7 @@ def main():
                         help="Override the 1p19q column name in covariates files")
     args = parser.parse_args()
 
-    # Resolve output directory — CLI wins over config defaults
+    # Resolve output directory — CLI wins over pgs_case_control_config defaults
     outdir = Path(args.outdir) if args.outdir else OUTPUT_DIR
     outdir.mkdir(parents=True, exist_ok=True)
 

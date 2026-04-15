@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-config.py — Central configuration for PGS case/control logistic regression meta-analysis pipeline.
+pgs_case_control_config.py — Central configuration for PGS case/control logistic regression meta-analysis pipeline.
 
 Edit BASE_DIR and OUTPUT_DIR to point at your data and desired output locations.
 Everything else can remain as-is for standard runs.

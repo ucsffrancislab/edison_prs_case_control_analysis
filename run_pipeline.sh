@@ -1,7 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=pgs_meta
-#SBATCH --cpus-per-task=64
-#SBATCH --mem=490G
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=240G
 #SBATCH --time=14-0
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null

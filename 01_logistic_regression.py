@@ -22,7 +22,7 @@ import time
 import warnings
 from pathlib import Path
 
-# ── Ensure sibling modules (config, utils) are importable regardless of CWD ──
+# ── Ensure sibling modules (pgs_case_control_config, pgs_case_control_utils) are importable regardless of CWD ──
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
@@ -309,11 +309,11 @@ def main():
     parser.add_argument("--idh-column", type=str, default=None,
                         metavar="COLNAME",
                         help="Override the IDH column name in covariates files "
-                             f"(default: config.IDH_COLUMN)")
+                             f"(default: pgs_case_control_config.IDH_COLUMN)")
     parser.add_argument("--pq-column", type=str, default=None,
                         metavar="COLNAME",
                         help="Override the 1p19q column name in covariates files "
-                             f"(default: config.PQ_COLUMN)")
+                             f"(default: pgs_case_control_config.PQ_COLUMN)")
     parser.add_argument("--sex", type=str, default=None,
                         metavar="M|F",
                         help="Restrict entire cohort (cases AND controls) to this sex. "
@@ -322,7 +322,7 @@ def main():
     parser.add_argument("--outdir", type=str, default=None,
                         metavar="DIR",
                         help="Output directory for results and logs. "
-                             "Created if it does not exist. Overrides config OUTPUT_DIR.")
+                             "Created if it does not exist. Overrides pgs_case_control_config OUTPUT_DIR.")
     args = parser.parse_args()
 
     # Resolve output directory

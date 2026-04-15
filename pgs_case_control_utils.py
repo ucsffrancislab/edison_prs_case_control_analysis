@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-utils.py — Shared utilities for PGS case/control logistic regression meta-analysis pipeline.
+pgs_case_control_utils.py — Shared utilities for PGS case/control logistic regression meta-analysis pipeline.
 
 Provides:
     - setup_logging()                : configure logging to console + file
@@ -92,7 +92,7 @@ def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
     cohort_name : str
         Label for this cohort (used in logging).
     cohort_cfg : dict
-        Entry from config.COHORTS (must have covariates_file, scores_file, etc.).
+        Entry from pgs_case_control_config.COHORTS (must have covariates_file, scores_file, etc.).
     base_dir : Path
         Root data directory.
     pgs_ids : list, optional
@@ -105,10 +105,10 @@ def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
         Controls (case==0) are always retained regardless of this filter.
     idh_column : str, optional
         Column name in the covariates file for IDH status. Falls back to
-        config.IDH_COLUMN if None.
+        pgs_case_control_config.IDH_COLUMN if None.
     pq_column : str, optional
         Column name in the covariates file for 1p19q status. Falls back to
-        config.PQ_COLUMN if None.
+        pgs_case_control_config.PQ_COLUMN if None.
     sex_filter : str, optional
         If provided, restrict the entire cohort (cases AND controls) to this
         sex value. Accepts "M" or "F" (case-insensitive). Applied before
@@ -136,8 +136,8 @@ def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
                 cohort_name, n_excluded, len(cov))
 
     # --- 2. Subtype filter (cases only) --------------------------------------
-    # Resolve column names from args or config defaults
-    from config import IDH_COLUMN, PQ_COLUMN
+    # Resolve column names from args or pgs_case_control_config defaults
+    from pgs_case_control_config import IDH_COLUMN, PQ_COLUMN
     _idh_col = idh_column or IDH_COLUMN
     _pq_col  = pq_column  or PQ_COLUMN
 
@@ -257,7 +257,7 @@ def load_cohort_data(cohort_name: str, cohort_cfg: dict, base_dir: Path,
                         cohort_name)
 
     # --- 5. Missingness summary -----------------------------------------------
-    from config import BASE_COVARIATES
+    from pgs_case_control_config import BASE_COVARIATES
     extra_covs = cohort_cfg.get("extra_covariates", [])
     all_covs = BASE_COVARIATES + extra_covs
     for c in all_covs:
